@@ -1,24 +1,40 @@
 {
   "expo": {
-    "name": "lambe-app",
+    "name": "LAMBE",
     "slug": "lambe-app",
+    "scheme": "lambeapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.lambe.anonim",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+        "backgroundColor": "#121214",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Izinkan aplikasi LAMBE untuk mengakses galeri agar kamu dapat melampirkan foto pada postingan anonim.",
+          "cameraPermission": "Izinkan aplikasi LAMBE untuk mengakses kamera agar kamu dapat mengambil foto langsung untuk keluh kesahmu."
+        }
+      ]
+    ]
   }
 }

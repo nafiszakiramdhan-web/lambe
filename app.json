@@ -20,7 +20,8 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_IMAGES"
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -35,6 +36,11 @@
           "cameraPermission": "Izinkan aplikasi LAMBE untuk mengakses kamera agar kamu dapat mengambil foto langsung untuk keluh kesahmu."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d5bc0f5d-29ec-4ded-9e75-b344012188a6"
+      }
+    }
   }
 }

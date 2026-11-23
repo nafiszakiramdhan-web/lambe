@@ -1,28 +1,63 @@
-// Token warna Glassmorphism & Multi-Aksen untuk LAMBE sesuai DESIGN.md
+// Token warna Glassmorphism & Multi-Tema untuk LAMBE sesuai DESIGN.md & SPEC.md
 
-export const BASE_THEMES = {
-  dark: {
+export const PRESET_THEMES = {
+  glass_dark: {
+    id: 'glass_dark',
+    label: 'Glass Dark',
+    description: 'Kaca buram obsidian & pendar halus',
     isDark: true,
     bgBase: '#09090B',
-    glassSurface: 'rgba(24, 24, 29, 0.68)',
-    glassElevated: 'rgba(34, 34, 42, 0.82)',
-    glassBorder: 'rgba(255, 255, 255, 0.11)',
-    glassHighlight: 'rgba(255, 255, 255, 0.18)',
+    glassSurface: 'rgba(24, 24, 29, 0.72)',
+    glassElevated: 'rgba(34, 34, 42, 0.85)',
+    glassBorder: 'rgba(255, 255, 255, 0.12)',
+    glassHighlight: 'rgba(255, 255, 255, 0.20)',
     textPrimary: '#F4F4F6',
     textSecondary: '#9CA3AF',
+    divider: 'rgba(255, 255, 255, 0.08)',
+    threadLine: 'rgba(255, 255, 255, 0.16)',
     blurTint: 'dark',
   },
-  light: {
+  midnight: {
+    id: 'midnight',
+    label: 'Midnight (OLED)',
+    description: 'Hitam pekat OLED, kontras tinggi & hemat baterai',
+    isDark: true,
+    bgBase: '#000000',
+    glassSurface: 'rgba(18, 18, 20, 0.90)',
+    glassElevated: 'rgba(28, 28, 32, 0.96)',
+    glassBorder: 'rgba(255, 255, 255, 0.16)',
+    glassHighlight: 'rgba(255, 255, 255, 0.26)',
+    textPrimary: '#FFFFFF',
+    textSecondary: '#A1A1AA',
+    divider: 'rgba(255, 255, 255, 0.12)',
+    threadLine: 'rgba(255, 255, 255, 0.22)',
+    blurTint: 'dark',
+  },
+  light_frosted: {
+    id: 'light_frosted',
+    label: 'Light Frosted',
+    description: 'Kaca buram cerah, bersih & sejuk',
     isDark: false,
-    bgBase: '#F3F2EE',
-    glassSurface: 'rgba(255, 255, 255, 0.72)',
-    glassElevated: 'rgba(255, 255, 255, 0.88)',
+    bgBase: '#F4F5F7',
+    glassSurface: 'rgba(255, 255, 255, 0.80)',
+    glassElevated: 'rgba(255, 255, 255, 0.95)',
     glassBorder: 'rgba(0, 0, 0, 0.08)',
-    glassHighlight: 'rgba(255, 255, 255, 0.95)',
-    textPrimary: '#141416',
-    textSecondary: '#6B7280',
+    glassHighlight: 'rgba(255, 255, 255, 0.98)',
+    textPrimary: '#0F172A',
+    textSecondary: '#64748B',
+    divider: 'rgba(0, 0, 0, 0.06)',
+    threadLine: 'rgba(0, 0, 0, 0.12)',
     blurTint: 'light',
   },
+};
+
+// Aliases for backwards compatibility
+export const BASE_THEMES = {
+  dark: PRESET_THEMES.glass_dark,
+  glass_dark: PRESET_THEMES.glass_dark,
+  midnight: PRESET_THEMES.midnight,
+  light: PRESET_THEMES.light_frosted,
+  light_frosted: PRESET_THEMES.light_frosted,
 };
 
 export const ACCENT_PALETTES = {
@@ -36,9 +71,9 @@ export const ACCENT_PALETTES = {
       glow: 'rgba(200, 255, 46, 0.16)',
     },
     light: {
-      accent: '#65A30D',
+      accent: '#4D7C0F', // Keterbacaan kontras tinggi di latar terang
       onAccent: '#FFFFFF',
-      glow: 'rgba(101, 163, 13, 0.14)',
+      glow: 'rgba(77, 124, 15, 0.14)',
     },
   },
   amber: {
@@ -96,25 +131,35 @@ export const ACCENT_PALETTES = {
       glow: 'rgba(244, 114, 182, 0.22)',
     },
     light: {
-      accent: '#EC4899',
+      accent: '#DB2777',
       onAccent: '#FFFFFF',
-      glow: 'rgba(236, 72, 153, 0.16)',
+      glow: 'rgba(219, 39, 119, 0.16)',
     },
   },
 };
 
+export const THEME_LIST = Object.values(PRESET_THEMES);
 export const ACCENT_LIST = Object.values(ACCENT_PALETTES);
 
-export const getTheme = (mode = 'dark', accentKey = 'lime') => {
-  const currentMode = mode in BASE_THEMES ? mode : 'dark';
-  const currentAccentKey = accentKey in ACCENT_PALETTES ? accentKey : 'lime';
+export const getTheme = (themeId = 'glass_dark', accentKey = 'lime') => {
+  // Resolusi ID tema yang didukung
+  let resolvedThemeId = themeId;
+  if (resolvedThemeId === 'dark') resolvedThemeId = 'glass_dark';
+  if (resolvedThemeId === 'light') resolvedThemeId = 'light_frosted';
+  if (!PRESET_THEMES[resolvedThemeId]) {
+    resolvedThemeId = 'glass_dark';
+  }
 
-  const base = BASE_THEMES[currentMode];
+  const base = PRESET_THEMES[resolvedThemeId];
+  const currentAccentKey = accentKey in ACCENT_PALETTES ? accentKey : 'lime';
   const accentDef = ACCENT_PALETTES[currentAccentKey];
-  const accentValues = accentDef[currentMode];
+  const accentValues = base.isDark ? accentDef.dark : accentDef.light;
 
   return {
-    mode: currentMode,
+    id: resolvedThemeId,
+    mode: base.isDark ? 'dark' : 'light',
+    themeLabel: base.label,
+    themeDesc: base.description,
     accentKey: currentAccentKey,
     accentLabel: accentDef.label,
     ...base,

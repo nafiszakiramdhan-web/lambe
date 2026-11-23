@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { ArrowLeft, Send, MessageCircle } from 'lucide-react-native';
+import { ArrowLeft, Send, MessageCircle, Share2, Ghost } from 'lucide-react-native';
 import GlassBackground from '../components/GlassBackground';
 import PostCard from '../components/PostCard';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabase';
+import { sharePost } from '../lib/shareHelper';
 
 export default function ThreadScreen({ route, navigation }) {
   const { post: initialPost } = route.params || {};
@@ -44,7 +45,6 @@ export default function ThreadScreen({ route, navigation }) {
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
       setKeyboardHeight(e.endCoordinates.height);
-      // Scroll daftar balasan ke bawah saat keyboard muncul
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 150);
@@ -150,7 +150,6 @@ export default function ThreadScreen({ route, navigation }) {
       }
     } catch (err) {
       console.warn('Gagal mengubah status like:', err);
-      // Rollback jika gagal
       if (isMain) {
         setMainPost((prev) => ({
           ...prev,
@@ -246,7 +245,6 @@ export default function ThreadScreen({ route, navigation }) {
 
       setReplies((prev) => [...prev, newReply]);
 
-      // Scroll ke paling bawah agar balasan baru langsung terlihat
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 150);
@@ -254,6 +252,12 @@ export default function ThreadScreen({ route, navigation }) {
       Alert.alert('Gagal Mengirim Balasan', err.message || 'Terjadi kesalahan.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleShareThread = () => {
+    if (mainPost) {
+      sharePost(mainPost);
     }
   };
 
@@ -266,7 +270,7 @@ export default function ThreadScreen({ route, navigation }) {
         style={styles.container}
         keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
-        {/* Header Bar */}
+        {/* Header Bar ala X / Threads */}
         <View
           style={[
             styles.headerBar,
@@ -279,7 +283,7 @@ export default function ThreadScreen({ route, navigation }) {
         >
           <TouchableOpacity
             style={[
-              styles.backButton,
+              styles.headerBtn,
               {
                 backgroundColor: theme.glassElevated,
                 borderColor: theme.glassBorder,
@@ -291,11 +295,29 @@ export default function ThreadScreen({ route, navigation }) {
             <ArrowLeft size={18} color={theme.textPrimary} />
           </TouchableOpacity>
 
-          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-            Thread Anonim
-          </Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+              Thread Keluh Kesah
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
+              @{mainPost?.username || 'anonim'}
+            </Text>
+          </View>
 
-          <View style={styles.headerRightPlaceholder} />
+          {/* Tombol Bagikan Thread di Header */}
+          <TouchableOpacity
+            style={[
+              styles.headerBtn,
+              {
+                backgroundColor: theme.glassElevated,
+                borderColor: theme.glassBorder,
+              },
+            ]}
+            onPress={handleShareThread}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Share2 size={17} color={theme.accent} />
+          </TouchableOpacity>
         </View>
 
         {/* List: Main Post di HeaderList + Balasan di Items */}
@@ -312,6 +334,9 @@ export default function ThreadScreen({ route, navigation }) {
                   item={mainPost}
                   onToggleLike={handleToggleLike}
                   onDelete={handleDeleteItem}
+                  onShare={sharePost}
+                  isDetailed={true}
+                  isThreadParent={replies.length > 0}
                 />
               )}
 
@@ -320,7 +345,7 @@ export default function ThreadScreen({ route, navigation }) {
                 <View
                   style={[
                     styles.dividerLine,
-                    { backgroundColor: theme.glassBorder },
+                    { backgroundColor: theme.divider || theme.glassBorder },
                   ]}
                 />
                 <View style={styles.dividerLabelRow}>
@@ -337,7 +362,7 @@ export default function ThreadScreen({ route, navigation }) {
                 <View
                   style={[
                     styles.dividerLine,
-                    { backgroundColor: theme.glassBorder },
+                    { backgroundColor: theme.divider || theme.glassBorder },
                   ]}
                 />
               </View>
@@ -354,19 +379,21 @@ export default function ThreadScreen({ route, navigation }) {
               )}
             </View>
           }
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <View style={styles.replyCardWrapper}>
               <PostCard
                 item={item}
                 onToggleLike={handleToggleLike}
                 onDelete={handleDeleteItem}
+                onShare={sharePost}
+                showThreadLine={index < replies.length - 1}
               />
             </View>
           )}
           contentContainerStyle={[
             styles.listContent,
             {
-              paddingBottom: isKeyboardOpen ? 40 : 20,
+              paddingBottom: isKeyboardOpen ? 40 : 30,
             },
           ]}
           showsVerticalScrollIndicator={false}
@@ -380,7 +407,7 @@ export default function ThreadScreen({ route, navigation }) {
                     { color: theme.textSecondary },
                   ]}
                 >
-                  Belum ada balasan. Tulis celetukan pertamamu di bawah!
+                  Belum ada balasan. Mulai alur thread dengan celetukanmu di bawah!
                 </Text>
               </View>
             )
@@ -402,7 +429,7 @@ export default function ThreadScreen({ route, navigation }) {
           ]}
         >
           <BlurView
-            intensity={50}
+            intensity={60}
             tint={theme.blurTint}
             style={[
               styles.blurInputBar,
@@ -412,6 +439,20 @@ export default function ThreadScreen({ route, navigation }) {
               },
             ]}
           >
+            <View
+              style={[
+                styles.replyAvatarMini,
+                {
+                  backgroundColor: theme.isDark
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : 'rgba(0, 0, 0, 0.04)',
+                  borderColor: theme.accent,
+                },
+              ]}
+            >
+              <Ghost size={14} color={theme.accent} />
+            </View>
+
             <TextInput
               style={[
                 styles.replyInput,
@@ -419,7 +460,7 @@ export default function ThreadScreen({ route, navigation }) {
                   color: theme.textPrimary,
                 },
               ]}
-              placeholder="Balas secara anonim..."
+              placeholder={`Balas sebagai @${currentUsername || 'anonim'}...`}
               placeholderTextColor={theme.textSecondary}
               value={replyText}
               onChangeText={setReplyText}
@@ -443,7 +484,7 @@ export default function ThreadScreen({ route, navigation }) {
               {sending ? (
                 <ActivityIndicator size="small" color={theme.onAccent} />
               ) : (
-                <Send size={16} color={theme.onAccent} />
+                <Send size={15} color={theme.onAccent} />
               )}
             </TouchableOpacity>
           </BlurView>
@@ -465,7 +506,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
-  backButton: {
+  headerBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -473,27 +514,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerTitleContainer: {
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
-  headerRightPlaceholder: {
-    width: 36,
+  headerSubtitle: {
+    fontSize: 12,
+    marginTop: 1,
   },
   flatList: {
     flex: 1,
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   listHeaderWrapper: {
-    marginBottom: 4,
+    marginBottom: 8,
   },
   repliesDivider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 14,
+    marginVertical: 12,
     gap: 10,
   },
   dividerLine: {
@@ -510,25 +556,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   replyCardWrapper: {
-    marginLeft: 14,
+    marginBottom: 4,
   },
   loadingWrapper: {
-    flexDirection: 'row',
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 16,
   },
   loadingText: {
     fontSize: 13,
   },
   emptyReplies: {
-    paddingVertical: 24,
+    paddingVertical: 30,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
   emptyRepliesText: {
     fontSize: 13,
     textAlign: 'center',
+    lineHeight: 18,
   },
   inputBarContainer: {
     paddingHorizontal: 16,
@@ -537,24 +585,31 @@ const styles = StyleSheet.create({
   blurInputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 999,
+    borderRadius: 24,
     borderWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     overflow: 'hidden',
+    gap: 8,
+  },
+  replyAvatarMini: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   replyInput: {
     flex: 1,
     fontSize: 14,
-    paddingVertical: 8,
-    maxHeight: 80,
+    paddingVertical: 6,
   },
   sendReplyBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
   },
 });

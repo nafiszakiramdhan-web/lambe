@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -25,6 +26,9 @@ import ThemeModal from '../components/ThemeModal';
 import UsernameModal from '../components/UsernameModal';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabase';
+import { sharePost } from '../lib/shareHelper';
+
+const ACCENT_COLORS = ['#C8FF2E', '#F59E0B', '#8B5CF6', '#EF4444', '#F472B6'];
 
 export default function FeedScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -184,14 +188,14 @@ export default function FeedScreen({ route, navigation }) {
     fetchTweets();
   };
 
-  const headerHeight = insets.top + 58;
+  const headerHeight = insets.top + 64;
 
   return (
     <GlassBackground>
-      {/* Top Glass Header */}
+      {/* Top Glass Header dengan Identitas LAMBE */}
       <View style={[styles.headerWrapper, { paddingTop: insets.top }]}>
         <BlurView
-          intensity={35}
+          intensity={40}
           tint={theme.blurTint}
           style={[
             styles.blurHeader,
@@ -202,6 +206,7 @@ export default function FeedScreen({ route, navigation }) {
           ]}
         >
           <View style={styles.headerLeft}>
+            {/* Logo Lingkaran Lambe */}
             <View
               style={[
                 styles.headerLogoCircle,
@@ -211,56 +216,59 @@ export default function FeedScreen({ route, navigation }) {
                 },
               ]}
             >
-              <Ghost size={18} color={theme.accent} />
+              <Image
+                source={require('../../assets/lambe-logo.png')}
+                style={styles.headerLogoImage}
+                resizeMode="contain"
+              />
             </View>
+
             <View style={styles.brandCol}>
               <View style={styles.brandRow}>
                 <Text style={[styles.brandText, { color: theme.textPrimary }]}>
                   LAMBE
                 </Text>
-                <View
-                  style={[
-                    styles.badgeAnonim,
-                    {
-                      backgroundColor: theme.isDark
-                        ? 'rgba(255, 255, 255, 0.08)'
-                        : 'rgba(0, 0, 0, 0.05)',
-                      borderColor: theme.accent,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.badgeText, { color: theme.accent }]}>
-                    100% Anonim
-                  </Text>
+                {/* 5 Kotak/Titik Warna Aksen Identitas Lambe */}
+                <View style={styles.accentDotsRow}>
+                  {ACCENT_COLORS.map((c, i) => (
+                    <View
+                      key={i}
+                      style={[styles.accentMiniDot, { backgroundColor: c }]}
+                    />
+                  ))}
                 </View>
               </View>
 
-              {/* Pill Badge Username Pengguna Aktif */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                  styles.userPillBadge,
-                  {
-                    backgroundColor: theme.isDark
-                      ? 'rgba(255, 255, 255, 0.09)'
-                      : 'rgba(0, 0, 0, 0.05)',
-                    borderColor: theme.glassBorder,
-                  },
-                ]}
-                onPress={() => setUsernameModalVisible(true)}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={[styles.userPillText, { color: theme.accent }]}
-                >
-                  @{currentUsername || 'kamu'}
-                </Text>
-                <Pencil size={11} color={theme.textSecondary} />
-              </TouchableOpacity>
+              <Text style={[styles.subBrandText, { color: theme.textSecondary }]}>
+                ANONIM KELUH KESAH
+              </Text>
             </View>
           </View>
 
           <View style={styles.headerRight}>
+            {/* Pill Badge Username Pengguna Aktif */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[
+                styles.userPillBadge,
+                {
+                  backgroundColor: theme.isDark
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : 'rgba(0, 0, 0, 0.05)',
+                  borderColor: theme.glassBorder,
+                },
+              ]}
+              onPress={() => setUsernameModalVisible(true)}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.userPillText, { color: theme.accent }]}
+              >
+                @{currentUsername || 'kamu'}
+              </Text>
+              <Pencil size={11} color={theme.textSecondary} />
+            </TouchableOpacity>
+
             {/* Tombol Tema */}
             <TouchableOpacity
               activeOpacity={0.7}
@@ -273,7 +281,7 @@ export default function FeedScreen({ route, navigation }) {
               ]}
               onPress={() => setThemeModalVisible(true)}
             >
-              <Palette size={18} color={theme.accent} />
+              <Palette size={17} color={theme.accent} />
             </TouchableOpacity>
 
             {/* Tombol Keluar */}
@@ -288,7 +296,7 @@ export default function FeedScreen({ route, navigation }) {
               ]}
               onPress={handleLogout}
             >
-              <LogOut size={18} color={theme.textSecondary} />
+              <LogOut size={17} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </BlurView>
@@ -299,7 +307,7 @@ export default function FeedScreen({ route, navigation }) {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.accent} />
           <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            Memuat keluh kesah anonim...
+            Memuat linimasa keluh kesah...
           </Text>
         </View>
       ) : (
@@ -309,15 +317,17 @@ export default function FeedScreen({ route, navigation }) {
           renderItem={({ item }) => (
             <PostCard
               item={item}
-              onPressReply={() => navigation.navigate('Thread', { post: item })}
+              onPressCard={(post) => navigation.navigate('Thread', { post })}
+              onPressReply={(post) => navigation.navigate('Thread', { post })}
               onToggleLike={handleToggleLike}
               onDelete={handleDeletePost}
+              onShare={sharePost}
             />
           )}
           contentContainerStyle={[
             styles.listContent,
             {
-              paddingTop: headerHeight + 16,
+              paddingTop: headerHeight + 14,
               paddingBottom: 110,
             },
           ]}
@@ -348,14 +358,14 @@ export default function FeedScreen({ route, navigation }) {
                 Belum ada keluh kesah
               </Text>
               <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
-                Jadilah yang pertama meluapkan unek-unek secara anonim di sini.
+                Jadilah yang pertama meluapkan celetukan & unek-unek secara anonim di sini.
               </Text>
             </View>
           }
         />
       )}
 
-      {/* Bottom Floating Capsule Dock */}
+      {/* Bottom Floating Capsule Dock ala X / Threads */}
       <View
         style={[
           styles.floatingDockContainer,
@@ -385,7 +395,7 @@ export default function FeedScreen({ route, navigation }) {
           >
             <Plus size={20} color={theme.onAccent} strokeWidth={2.5} />
             <Text style={[styles.dockButtonText, { color: theme.onAccent }]}>
-              Tulis Tweet
+              Tulis Keluh Kesah
             </Text>
           </TouchableOpacity>
         </BlurView>
@@ -402,7 +412,7 @@ export default function FeedScreen({ route, navigation }) {
         visible={usernameModalVisible}
         currentUsername={currentUsername}
         onClose={() => setUsernameModalVisible(false)}
-        onSuccess={handleUsernameUpdated}
+        onUpdated={handleUsernameUpdated}
       />
     </GlassBackground>
   );
@@ -414,7 +424,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    zIndex: 100,
   },
   blurHeader: {
     flexDirection: 'row',
@@ -430,13 +440,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerLogoCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+    overflow: 'hidden',
+    padding: 2,
+  },
+  headerLogoImage: {
+    width: '100%',
+    height: '100%',
   },
   brandCol: {
     justifyContent: 'center',
@@ -449,44 +465,47 @@ const styles = StyleSheet.create({
   brandText: {
     fontSize: 17,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 0.5,
   },
-  badgeAnonim: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  badgeText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  userPillBadge: {
+  accentDotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-    marginTop: 3,
-    alignSelf: 'flex-start',
-    maxWidth: 160,
+    gap: 3,
   },
-  userPillText: {
-    fontSize: 11,
+  accentMiniDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  subBrandText: {
+    fontSize: 9.5,
     fontWeight: '700',
+    letterSpacing: 0.8,
+    marginTop: 1,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
+  },
+  userPillBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    maxWidth: 110,
+    gap: 4,
+  },
+  userPillText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   headerActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -506,8 +525,8 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 30,
+    paddingVertical: 70,
+    paddingHorizontal: 24,
   },
   emptyIconContainer: {
     width: 72,
@@ -522,6 +541,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     marginBottom: 6,
+    textAlign: 'center',
   },
   emptySub: {
     fontSize: 13,
@@ -531,30 +551,24 @@ const styles = StyleSheet.create({
   floatingDockContainer: {
     position: 'absolute',
     alignSelf: 'center',
-    zIndex: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 8,
+    zIndex: 90,
   },
   floatingDock: {
     borderRadius: 999,
-    overflow: 'hidden',
     borderWidth: 1,
-    padding: 5,
+    overflow: 'hidden',
+    padding: 4,
   },
   dockButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 11,
-    paddingHorizontal: 22,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
     borderRadius: 999,
+    gap: 8,
   },
   dockButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.2,
   },
 });

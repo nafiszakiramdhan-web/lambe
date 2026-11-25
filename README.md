@@ -9,12 +9,24 @@
 </p>
 
 <p align="center">
+  <a href="https://nafiszakiramdhan-web.github.io/lambe/">
+    <img src="https://img.shields.io/badge/Demo_Web-Live_on_GitHub_Pages-lime?style=for-the-badge&logo=githubpages&logoColor=black" alt="Live Demo GitHub Pages" />
+  </a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/React_Native-0.88-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React Native" />
   <img src="https://img.shields.io/badge/Expo-SDK_58-000020?style=flat-square&logo=expo&logoColor=white" alt="Expo" />
   <img src="https://img.shields.io/badge/Supabase-Database_%26_Auth-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
   <img src="https://img.shields.io/badge/Cloudinary-Media_Storage-3448C5?style=flat-square&logo=cloudinary&logoColor=white" alt="Cloudinary" />
   <img src="https://img.shields.io/badge/Lisensi-MIT-lime?style=flat-square" alt="Lisensi" />
 </p>
+
+---
+
+## 🌐 Akses Web Interaktif
+Aplikasi web interaktif **LAMBE** dapat langsung diakses di browser melalui tautan GitHub Pages:
+👉 **[https://nafiszakiramdhan-web.github.io/lambe/](https://nafiszakiramdhan-web.github.io/lambe/)**
 
 ---
 

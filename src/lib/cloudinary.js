@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { ENV } from '../config/env';
@@ -10,9 +11,11 @@ const MAX_IMAGE_SELECTION = 4;
  * Mengembalikan objek { uri, width, height, base64 } atau null jika dibatalkan.
  */
 export const takePhotoWithCamera = async () => {
-  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-  if (status !== 'granted') {
-    throw new Error('Izin akses kamera diperlukan untuk mengambil foto langsung.');
+  if (Platform.OS !== 'web') {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      throw new Error('Izin akses kamera diperlukan untuk mengambil foto langsung.');
+    }
   }
 
   const result = await ImagePicker.launchCameraAsync({
@@ -33,15 +36,26 @@ export const takePhotoWithCamera = async () => {
     actions.push({ resize: { width: 1080 } });
   }
 
-  const manipulated = await ImageManipulator.manipulateAsync(
-    asset.uri,
-    actions,
-    {
-      compress: 0.7,
-      format: ImageManipulator.SaveFormat.JPEG,
-      base64: true,
-    }
-  );
+  let manipulated;
+  try {
+    manipulated = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      actions,
+      {
+        compress: 0.7,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      }
+    );
+  } catch (err) {
+    console.warn('ImageManipulator fallback on web/native:', err);
+    manipulated = {
+      uri: asset.uri,
+      width: asset.width || 1080,
+      height: asset.height || 1080,
+      base64: asset.base64 || null,
+    };
+  }
 
   return {
     uri: manipulated.uri,
@@ -58,9 +72,11 @@ export const takePhotoWithCamera = async () => {
  * Mengembalikan array objek [{ uri, width, height, base64 }, ...].
  */
 export const pickAndCompressImages = async (maxSelection = MAX_IMAGE_SELECTION) => {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') {
-    throw new Error('Izin akses galeri diperlukan untuk melampirkan foto.');
+  if (Platform.OS !== 'web') {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      throw new Error('Izin akses galeri diperlukan untuk melampirkan foto.');
+    }
   }
 
   const limit = Math.max(1, Math.min(MAX_IMAGE_SELECTION, maxSelection));
@@ -87,15 +103,26 @@ export const pickAndCompressImages = async (maxSelection = MAX_IMAGE_SELECTION) 
         actions.push({ resize: { width: 1080 } });
       }
 
-      const manipulated = await ImageManipulator.manipulateAsync(
-        asset.uri,
-        actions,
-        {
-          compress: 0.7,
-          format: ImageManipulator.SaveFormat.JPEG,
-          base64: true,
-        }
-      );
+      let manipulated;
+      try {
+        manipulated = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          actions,
+          {
+            compress: 0.7,
+            format: ImageManipulator.SaveFormat.JPEG,
+            base64: true,
+          }
+        );
+      } catch (err) {
+        console.warn('ImageManipulator fallback on web/native:', err);
+        manipulated = {
+          uri: asset.uri,
+          width: asset.width || 1080,
+          height: asset.height || 1080,
+          base64: asset.base64 || null,
+        };
+      }
 
       return {
         uri: manipulated.uri,

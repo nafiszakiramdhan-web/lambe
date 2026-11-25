@@ -19,10 +19,11 @@ export const sharePost = async (post) => {
       : rawContent;
 
   const deepLink = `lambeapp://post/${post.id}`;
-  const webLink =
+  const webBase =
     typeof window !== 'undefined' && window.location?.origin
-      ? `${window.location.origin}/post/${post.id}`
-      : `https://lambe.app/post/${post.id}`;
+      ? `${window.location.origin}${window.location.pathname.startsWith('/lambe') ? '/lambe' : ''}`
+      : 'https://nafiszakiramdhan-web.github.io/lambe';
+  const webLink = `${webBase}/post/${post.id}`;
 
   const shareTitle = `LAMBE: Keluh Kesah @${username}`;
   const shareMessage = `"${summary}"\n— @${username} di LAMBE (Anonim Keluh Kesah)\n\nBuka di aplikasi:\n${deepLink}\nAtau kunjungi web:\n${webLink}`;

@@ -372,6 +372,9 @@ export default function CreatePostScreen({ navigation }) {
 const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
   },
   headerBar: {
     flexDirection: 'row',

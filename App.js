@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, ActivityIndicator, StyleSheet, Linking } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, ActivityIndicator, StyleSheet, Linking, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-import { supabase } from './src/lib/supabase';
+import { supabase, withTimeout } from './src/lib/supabase';
 
 import AuthScreen from './src/screens/AuthScreen';
 import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
@@ -23,15 +23,22 @@ function RootNavigator() {
   const [hasUsername, setHasUsername] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isRecovery, setIsRecovery] = useState(false);
+  const checkingProfileRef = useRef(false);
 
-  // Cek apakah pengguna sudah memiliki nama samaran di tabel profiles
+  // Cek apakah pengguna sudah memiliki nama samaran di tabel profiles (dengan timeout)
   const checkUserProfile = useCallback(async (userId) => {
+    if (!userId || checkingProfileRef.current) return;
+    checkingProfileRef.current = true;
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('user_id', userId)
-        .maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase
+          .from('profiles')
+          .select('username')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        10000,
+        'Gagal memuat profil anonim (timeout).'
+      );
 
       if (!error && data?.username) {
         setUsername(data.username);
@@ -43,13 +50,30 @@ function RootNavigator() {
     } catch (err) {
       console.warn('Gagal memuat profil pengguna:', err);
       setHasUsername(false);
+    } finally {
+      checkingProfileRef.current = false;
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // 1. Tangani deep link awal jika aplikasi dibuka dari tautan email
+    let isMounted = true;
+
+    // Fallback pengaman: pastikan loading tidak pernah macet selamanya
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 10000);
+
+    // 1. Tangani deep link awal jika aplikasi dibuka dari tautan email / web URL
     const handleInitialUrl = async () => {
       try {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const href = window.location.href || '';
+          if (href.includes('reset-password') || href.includes('type=recovery')) {
+            setIsRecovery(true);
+          }
+          return;
+        }
         const url = await Linking.getInitialURL();
         if (url && (url.includes('reset-password') || url.includes('type=recovery'))) {
           setIsRecovery(true);
@@ -67,20 +91,31 @@ function RootNavigator() {
       }
     });
 
-    // 3. Ambil sesi Supabase yang tersimpan
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      if (currentSession?.user?.id) {
-        checkUserProfile(currentSession.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
+    // 3. Ambil sesi Supabase yang tersimpan dengan timeout & catch
+    withTimeout(
+      supabase.auth.getSession(),
+      10000,
+      'Gagal memeriksa sesi login.'
+    )
+      .then(({ data: { session: currentSession } }) => {
+        if (!isMounted) return;
+        setSession(currentSession);
+        if (currentSession?.user?.id) {
+          checkUserProfile(currentSession.user.id);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Error getSession:', err);
+        if (isMounted) setLoading(false);
+      });
 
-    // 4. Dengarkan perubahan status autentikasi
+    // 4. Dengarkan perubahan status autentikasi TANPA await query di dalam callback (cegah deadlock lock Supabase)
     const {
       data: { subscription: authSub },
-    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      if (!isMounted) return;
       setSession(currentSession);
 
       if (event === 'PASSWORD_RECOVERY') {
@@ -88,15 +123,22 @@ function RootNavigator() {
       }
 
       if (currentSession?.user?.id) {
-        await checkUserProfile(currentSession.user.id);
+        // Jadwalkan di tick berikutnya agar tidak bentrok dengan auth lock
+        setTimeout(() => {
+          if (isMounted) {
+            checkUserProfile(currentSession.user.id);
+          }
+        }, 0);
       } else {
         setUsername(null);
         setHasUsername(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
       subscriptionLinking?.remove();
       authSub?.unsubscribe();
     };

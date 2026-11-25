@@ -30,7 +30,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 
 import GlassBackground from '../components/GlassBackground';
 import { useTheme } from '../context/ThemeContext';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -76,6 +76,12 @@ export default function AuthScreen({ route, navigation }) {
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const showError = (title, msg) => {
+    setErrorMessage(msg);
+    Alert.alert(title, msg);
+  };
 
   // Jika navigasi membuka layar ini dengan parameter isRecovery
   useEffect(() => {
@@ -86,23 +92,24 @@ export default function AuthScreen({ route, navigation }) {
 
   // Handle Login & Register
   const handleSubmit = async () => {
+    setErrorMessage('');
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
     const trimmedConfirmPassword = confirmPassword.trim();
 
     if (!trimmedEmail || !trimmedPassword) {
-      Alert.alert('Perhatian', 'Harap isi email dan kata sandi dengan lengkap.');
+      showError('Perhatian', 'Harap isi email dan kata sandi dengan lengkap.');
       return;
     }
 
     if (trimmedPassword.length < 6) {
-      Alert.alert('Perhatian', 'Kata sandi minimal terdiri dari 6 karakter.');
+      showError('Perhatian', 'Kata sandi minimal terdiri dari 6 karakter.');
       return;
     }
 
     if (authView === 'register') {
       if (trimmedPassword !== trimmedConfirmPassword) {
-        Alert.alert('Perhatian', 'Kata sandi dan konfirmasi kata sandi tidak cocok.');
+        showError('Perhatian', 'Kata sandi dan konfirmasi kata sandi tidak cocok.');
         return;
       }
     }
@@ -111,26 +118,38 @@ export default function AuthScreen({ route, navigation }) {
 
     try {
       if (authView === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: trimmedEmail,
-          password: trimmedPassword,
-        });
+        const { error } = await withTimeout(
+          supabase.auth.signInWithPassword({
+            email: trimmedEmail,
+            password: trimmedPassword,
+          }),
+          12000,
+          'Koneksi masuk ke server melebihi batas waktu. Periksa koneksi internetmu dan coba lagi.'
+        );
 
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: trimmedEmail,
-          password: trimmedPassword,
-        });
+        const { data, error } = await withTimeout(
+          supabase.auth.signUp({
+            email: trimmedEmail,
+            password: trimmedPassword,
+          }),
+          12000,
+          'Koneksi pendaftaran ke server melebihi batas waktu. Periksa koneksi internetmu dan coba lagi.'
+        );
 
         if (error) throw error;
 
         // Auto-confirm fallback: coba login jika belum terbentuk sesi
         if (data?.user && !data?.session) {
-          const { error: signInErr } = await supabase.auth.signInWithPassword({
-            email: trimmedEmail,
-            password: trimmedPassword,
-          });
+          const { error: signInErr } = await withTimeout(
+            supabase.auth.signInWithPassword({
+              email: trimmedEmail,
+              password: trimmedPassword,
+            }),
+            12000,
+            'Akun dibuat, namun login otomatis melebihi batas waktu. Silakan masuk manual.'
+          );
           if (signInErr) {
             Alert.alert(
               'Pendaftaran Berhasil',
@@ -147,7 +166,7 @@ export default function AuthScreen({ route, navigation }) {
       } else if (message.includes('User already registered')) {
         message = 'Email ini sudah terdaftar. Silakan pilih tab Masuk.';
       }
-      Alert.alert('Gagal', message);
+      showError('Gagal', message);
     } finally {
       setLoading(false);
     }
@@ -155,17 +174,29 @@ export default function AuthScreen({ route, navigation }) {
 
   // Handle Lupa Sandi (Kirim Tautan Reset)
   const handleForgotPassword = async () => {
+    setErrorMessage('');
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      Alert.alert('Perhatian', 'Harap masukkan alamat email akunmu terlebih dahulu.');
+      showError('Perhatian', 'Harap masukkan alamat email akunmu terlebih dahulu.');
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-        redirectTo: 'lambeapp://reset-password',
-      });
+      const webRedirect =
+        Platform.OS === 'web' && typeof window !== 'undefined'
+          ? window.location.pathname.startsWith('/lambe')
+            ? `${window.location.origin}/lambe/`
+            : window.location.href.split('#')[0].split('?')[0]
+          : 'lambeapp://reset-password';
+
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(trimmedEmail, {
+          redirectTo: webRedirect,
+        }),
+        12000,
+        'Permintaan kirim tautan reset melebihi batas waktu. Coba lagi.'
+      );
 
       if (error) throw error;
 
@@ -180,7 +211,7 @@ export default function AuthScreen({ route, navigation }) {
         ]
       );
     } catch (err) {
-      Alert.alert(
+      showError(
         'Gagal Mengirim Tautan',
         err?.message || 'Tidak dapat mengirim tautan pemulihan kata sandi.'
       );
@@ -191,29 +222,34 @@ export default function AuthScreen({ route, navigation }) {
 
   // Handle Setel Sandi Baru
   const handleUpdatePassword = async () => {
+    setErrorMessage('');
     const trimmedNew = newPassword.trim();
     const trimmedConfirm = confirmNewPassword.trim();
 
     if (!trimmedNew || !trimmedConfirm) {
-      Alert.alert('Perhatian', 'Harap isi sandi baru dan konfirmasinya.');
+      showError('Perhatian', 'Harap isi sandi baru dan konfirmasinya.');
       return;
     }
 
     if (trimmedNew.length < 6) {
-      Alert.alert('Perhatian', 'Kata sandi baru minimal 6 karakter.');
+      showError('Perhatian', 'Kata sandi baru minimal 6 karakter.');
       return;
     }
 
     if (trimmedNew !== trimmedConfirm) {
-      Alert.alert('Perhatian', 'Kata sandi baru dan konfirmasi tidak cocok.');
+      showError('Perhatian', 'Kata sandi baru dan konfirmasi tidak cocok.');
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: trimmedNew,
-      });
+      const { error } = await withTimeout(
+        supabase.auth.updateUser({
+          password: trimmedNew,
+        }),
+        12000,
+        'Pembaruan kata sandi melebihi batas waktu. Coba lagi.'
+      );
 
       if (error) throw error;
 
@@ -228,7 +264,7 @@ export default function AuthScreen({ route, navigation }) {
         },
       ]);
     } catch (err) {
-      Alert.alert(
+      showError(
         'Gagal Memperbarui Sandi',
         err?.message || 'Terjadi kesalahan saat memperbarui kata sandi.'
       );
@@ -239,19 +275,45 @@ export default function AuthScreen({ route, navigation }) {
 
   // Handle Google OAuth
   const handleGoogleSignIn = async () => {
+    setErrorMessage('');
     setLoading(true);
     try {
+      // Di Web (termasuk GitHub Pages /lambe/), gunakan redirect langsung ke halaman aktif
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const redirectTo = window.location.pathname.startsWith('/lambe')
+          ? `${window.location.origin}/lambe/`
+          : window.location.href.split('#')[0].split('?')[0];
+
+        const { error } = await withTimeout(
+          supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo,
+            },
+          }),
+          12000,
+          'Koneksi Google OAuth melebihi batas waktu. Silakan coba lagi.'
+        );
+
+        if (error) throw error;
+        return;
+      }
+
       const redirectTo = makeRedirectUri({
         scheme: 'lambeapp',
       });
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-        },
-      });
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo,
+            skipBrowserRedirect: true,
+          },
+        }),
+        12000,
+        'Koneksi Google OAuth melebihi batas waktu. Silakan coba lagi.'
+      );
 
       if (error) throw error;
       if (!data?.url) {
@@ -282,19 +344,26 @@ export default function AuthScreen({ route, navigation }) {
         }
 
         if (code) {
-          const { error: exchangeError } =
-            await supabase.auth.exchangeCodeForSession(code);
+          const { error: exchangeError } = await withTimeout(
+            supabase.auth.exchangeCodeForSession(code),
+            12000,
+            'Penukaran sesi Google melebihi batas waktu.'
+          );
           if (exchangeError) throw exchangeError;
         } else if (access_token && refresh_token) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token,
-            refresh_token,
-          });
+          const { error: sessionError } = await withTimeout(
+            supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            }),
+            12000,
+            'Penyimpanan sesi Google melebihi batas waktu.'
+          );
           if (sessionError) throw sessionError;
         }
       }
     } catch (err) {
-      Alert.alert(
+      showError(
         'Gagal Masuk dengan Google',
         err?.message || 'Terjadi kesalahan saat menghubungkan akun Google.'
       );
@@ -315,6 +384,7 @@ export default function AuthScreen({ route, navigation }) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            <View style={styles.desktopWrapper}>
             {/* Header Brand */}
             <View style={styles.brandContainer}>
               <View
@@ -388,6 +458,11 @@ export default function AuthScreen({ route, navigation }) {
                 },
               ]}
             >
+              {Boolean(errorMessage) && (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{errorMessage}</Text>
+                </View>
+              )}
               {/* TAMPILAN 1 & 2: LOGIN / REGISTER */}
               {(authView === 'login' || authView === 'register') && (
                 <>
@@ -954,6 +1029,7 @@ export default function AuthScreen({ route, navigation }) {
                 </View>
               )}
             </View>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -974,6 +1050,28 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     alignItems: 'center',
     flexGrow: 1,
+  },
+  desktopWrapper: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+    alignItems: 'center',
+  },
+  errorBanner: {
+    width: '100%',
+    backgroundColor: 'rgba(239, 68, 68, 0.14)',
+    borderColor: 'rgba(239, 68, 68, 0.45)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  errorBannerText: {
+    color: '#F87171',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   brandContainer: {
     alignItems: 'center',

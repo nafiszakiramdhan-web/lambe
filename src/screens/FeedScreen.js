@@ -25,7 +25,7 @@ import PostCard from '../components/PostCard';
 import ThemeModal from '../components/ThemeModal';
 import UsernameModal from '../components/UsernameModal';
 import { useTheme } from '../context/ThemeContext';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { sharePost } from '../lib/shareHelper';
 
 const ACCENT_COLORS = ['#C8FF2E', '#F59E0B', '#8B5CF6', '#EF4444', '#F472B6'];
@@ -72,11 +72,15 @@ export default function FeedScreen({ route, navigation }) {
   // Fetch daftar tweet anonim
   const fetchTweets = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('anon_tweets')
-        .select('*')
-        .is('parent_id', null)
-        .order('created_at', { ascending: false });
+      const { data, error } = await withTimeout(
+        supabase
+          .from('anon_tweets')
+          .select('*')
+          .is('parent_id', null)
+          .order('created_at', { ascending: false }),
+        12000,
+        'Gagal memuat linimasa (timeout).'
+      );
 
       if (error) throw error;
       setTweets(data || []);
@@ -205,6 +209,7 @@ export default function FeedScreen({ route, navigation }) {
             },
           ]}
         >
+          <View style={styles.headerInner}>
           <View style={styles.headerLeft}>
             {/* Logo Lingkaran Lambe */}
             <View
@@ -298,6 +303,7 @@ export default function FeedScreen({ route, navigation }) {
             >
               <LogOut size={17} color={theme.textSecondary} />
             </TouchableOpacity>
+          </View>
           </View>
         </BlurView>
       </View>
@@ -427,12 +433,17 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   blurHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
+  },
+  headerInner: {
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -511,6 +522,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   listContent: {
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
     paddingHorizontal: 16,
   },
   loadingContainer: {

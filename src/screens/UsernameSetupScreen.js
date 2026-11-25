@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ghost, Shuffle, ArrowRight, Shield, LogOut } from 'lucide-react-native';
 import GlassBackground from '../components/GlassBackground';
 import { useTheme } from '../context/ThemeContext';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import {
   generateRandomUsername,
   sanitizeUsername,
@@ -52,17 +52,25 @@ export default function UsernameSetupScreen({ onUsernameSet }) {
       const {
         data: { user },
         error: authErr,
-      } = await supabase.auth.getUser();
+      } = await withTimeout(
+        supabase.auth.getUser(),
+        10000,
+        'Verifikasi sesi melebihi batas waktu.'
+      );
 
       if (authErr || !user) {
         throw new Error('Sesi tidak valid. Silakan masuk kembali.');
       }
 
       // Simpan ke tabel profiles dengan kolom user_id
-      const { error: profileErr } = await supabase.from('profiles').insert({
-        user_id: user.id,
-        username: username.toLowerCase().trim(),
-      });
+      const { error: profileErr } = await withTimeout(
+        supabase.from('profiles').insert({
+          user_id: user.id,
+          username: username.toLowerCase().trim(),
+        }),
+        12000,
+        'Penyimpanan nama samaran melebihi batas waktu. Silakan coba lagi.'
+      );
 
       if (profileErr) {
         // Postgres error 23505 = unique_violation
@@ -282,6 +290,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 120,

@@ -497,6 +497,9 @@ export default function ThreadScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
   },
   headerBar: {
     flexDirection: 'row',
